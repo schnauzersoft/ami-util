@@ -23,15 +23,15 @@ A CLI tool that automatically updates AMI IDs (ami-xxxxx) in configuration files
 ### Build from Source
 
 ```bash
-git clone https://github.com/schnauzersoft/ami-util.git
-cd ami-util
-go build -o ami-util .
+$ git clone https://github.com/schnauzersoft/ami-util.git
+$ cd ami-util
+$ go build -o ami-util .
 ```
 
 ### Install Globally
 
 ```bash
-go install github.com/schnauzersoft/ami-util@latest
+$ go install github.com/schnauzersoft/ami-util@latest
 ```
 
 ## Quick Start
@@ -40,10 +40,10 @@ go install github.com/schnauzersoft/ami-util@latest
 
 ```bash
 # Create a default configuration file
-ami-util init
+$ ami-util init
 
 # Or specify a custom filename
-ami-util init my-config.yaml
+$ ami-util init my-config.yaml
 ```
 
 This creates a configuration file with default settings:
@@ -91,10 +91,10 @@ patterns:
 
 ```bash
 # Using configuration file
-ami-util
+$ ami-util
 
 # Or override specific settings
-ami-util --file terraform/main.tf --account-ids 123456789012 --verbose
+$ ami-util --file terraform/main.tf --account-ids 123456789012 --verbose
 ```
 
 ## Usage
@@ -102,7 +102,7 @@ ami-util --file terraform/main.tf --account-ids 123456789012 --verbose
 ### Command Line Options
 
 ```bash
-ami-util [flags]
+$ ami-util [flags]
 
 Flags:
   -a, --account-ids strings   Comma-separated list of AWS account IDs
