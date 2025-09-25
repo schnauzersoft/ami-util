@@ -49,7 +49,7 @@ func runInit(args []string) error {
 
 	// Create sample configuration
 	sampleConfig := &config.Config{
-		Accounts: []string{"137112412989", "123456789012", "987654321098"},
+		Accounts: []string{"137112412989"}, // Amazon Linux AMI account
 		File:     "config.yaml",
 		Profile:  "default",
 		Verbose:  false,
