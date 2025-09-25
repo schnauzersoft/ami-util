@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -19,7 +20,7 @@ import (
 
 var cfg *config.Config
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:   "ami-util",
 	Short: "Update AMI IDs to latest versions in configuration files",
@@ -70,8 +71,9 @@ Examples:
   
   # Mixed usage
   ami-util --account-ids 123456789012 --file config.yaml --profile myprofile`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := runUpdate(); err != nil {
+	Run: func(_ *cobra.Command, _ []string) {
+		err := runUpdate()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -100,12 +102,13 @@ func init() {
 	viper.AutomaticEnv()
 
 	// Bind environment variables
-	viper.BindEnv("accounts", "AMI_ACCOUNTS")
-	viper.BindEnv("file", "AMI_FILE")
-	viper.BindEnv("profile", "AMI_PROFILE")
-	viper.BindEnv("verbose", "AMI_VERBOSE")
-	viper.BindEnv("regions", "AMI_REGIONS")
-	viper.BindEnv("role_arn", "AMI_ROLE_ARN")
+	_ = viper.BindEnv("accounts", "AMI_ACCOUNTS")
+	_ = viper.BindEnv("file", "AMI_FILE")
+	_ = viper.BindEnv("profile", "AMI_PROFILE")
+	_ = viper.BindEnv("verbose", "AMI_VERBOSE")
+	_ = viper.BindEnv("regions", "AMI_REGIONS")
+	_ = viper.BindEnv("role_arn", "AMI_ROLE_ARN")
+	_ = viper.BindEnv("patterns", "AMI_PATTERNS")
 
 	// Set default values
 	viper.SetDefault("profile", "default")
@@ -117,26 +120,28 @@ func init() {
 	rootCmd.Flags().String("file", "", "Path to the configuration file to update")
 	rootCmd.Flags().String("profile", "default", "AWS profile to use for authentication")
 	rootCmd.Flags().Bool("verbose", false, "Enable verbose output")
-	rootCmd.Flags().StringSlice("regions", []string{"us-east-1", "us-west-2"}, "Comma-separated list of AWS regions to search")
+	rootCmd.Flags().StringSlice("regions", []string{"us-east-1", "us-west-2"},
+		"Comma-separated list of AWS regions to search")
 	rootCmd.Flags().String("role-arn", "", "Role ARN to assume (overrides AWS_ROLE_ARN env var)")
 	rootCmd.Flags().StringSlice("patterns", []string{}, "Comma-separated list of AMI name patterns to search for")
 
 	// Bind flags to viper
-	viper.BindPFlag("accounts", rootCmd.Flags().Lookup("account-ids"))
-	viper.BindPFlag("file", rootCmd.Flags().Lookup("file"))
-	viper.BindPFlag("profile", rootCmd.Flags().Lookup("profile"))
-	viper.BindPFlag("verbose", rootCmd.Flags().Lookup("verbose"))
-	viper.BindPFlag("regions", rootCmd.Flags().Lookup("regions"))
-	viper.BindPFlag("role_arn", rootCmd.Flags().Lookup("role-arn"))
-	viper.BindPFlag("patterns", rootCmd.Flags().Lookup("patterns"))
+	_ = viper.BindPFlag("accounts", rootCmd.Flags().Lookup("account-ids"))
+	_ = viper.BindPFlag("file", rootCmd.Flags().Lookup("file"))
+	_ = viper.BindPFlag("profile", rootCmd.Flags().Lookup("profile"))
+	_ = viper.BindPFlag("verbose", rootCmd.Flags().Lookup("verbose"))
+	_ = viper.BindPFlag("regions", rootCmd.Flags().Lookup("regions"))
+	_ = viper.BindPFlag("role_arn", rootCmd.Flags().Lookup("role-arn"))
+	_ = viper.BindPFlag("patterns", rootCmd.Flags().Lookup("patterns"))
 
 	// Mark required flags
-	rootCmd.MarkFlagRequired("file")
+	_ = rootCmd.MarkFlagRequired("file")
 }
 
 func runUpdate() error {
 	// Load and validate configuration
-	if err := loadAndValidateConfig(); err != nil {
+	err := loadAndValidateConfig()
+	if err != nil {
 		return err
 	}
 
@@ -156,34 +161,36 @@ func runUpdate() error {
 	}
 
 	// Collect AMI replacements from all accounts and regions
-	allReplacements, err := collectAMIReplacements(awsClient, patterns)
-	if err != nil {
-		return err
-	}
+	allReplacements := collectAMIReplacements(awsClient, patterns)
 
 	if len(allReplacements) == 0 {
-		fmt.Println("No AMI replacements found")
+		log.Println("No AMI replacements found")
+
 		return nil
 	}
 
 	// Process the file or directory
-	if err := processFiles(fileProcessor, fileInfo, allReplacements); err != nil {
+	err = processFiles(fileProcessor, fileInfo, allReplacements)
+	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Successfully processed %s\n", cfg.File)
+	log.Printf("Successfully processed %s", cfg.File)
+
 	return nil
 }
 
 func loadAndValidateConfig() error {
 	var err error
+
 	cfg, err = config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	if err := config.ValidateConfig(cfg); err != nil {
-		return err
+	err = config.ValidateConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return nil
@@ -191,12 +198,13 @@ func loadAndValidateConfig() error {
 
 func printConfigInfo() {
 	if cfg.Verbose {
-		fmt.Printf("Updating AMI IDs in file: %s\n", cfg.File)
-		fmt.Printf("Account IDs: %s\n", strings.Join(cfg.Accounts, ", "))
-		fmt.Printf("Regions: %s\n", strings.Join(cfg.Regions, ", "))
-		fmt.Printf("AWS Profile: %s\n", cfg.Profile)
+		log.Printf("Updating AMI IDs in file: %s", cfg.File)
+		log.Printf("Account IDs: %s", strings.Join(cfg.Accounts, ", "))
+		log.Printf("Regions: %s", strings.Join(cfg.Regions, ", "))
+		log.Printf("AWS Profile: %s", cfg.Profile)
+
 		if cfg.RoleARN != "" {
-			fmt.Printf("Role ARN: %s\n", cfg.RoleARN)
+			log.Printf("Role ARN: %s", cfg.RoleARN)
 		}
 	}
 }
@@ -208,6 +216,7 @@ func createClients() (*aws.Client, *fileprocessor.Processor, error) {
 	}
 
 	fileProcessor := fileprocessor.NewProcessor(cfg.Verbose)
+
 	return awsClient, fileProcessor, nil
 }
 
@@ -218,12 +227,14 @@ func getFileInfoAndPatterns(fileProcessor *fileprocessor.Processor) (os.FileInfo
 	}
 
 	var patterns []string
+
 	if !fileInfo.IsDir() {
 		// Extract AMI patterns from the file
 		filePatterns, err := fileProcessor.FindAMIsInFile(cfg.File)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find AMIs in file: %w", err)
 		}
+
 		patterns = filePatterns
 	} else {
 		// Use configured patterns for directory processing
@@ -233,50 +244,49 @@ func getFileInfoAndPatterns(fileProcessor *fileprocessor.Processor) (os.FileInfo
 	return fileInfo, patterns, nil
 }
 
-func collectAMIReplacements(awsClient *aws.Client, patterns []string) ([]aws.AMIReplacement, error) {
+func collectAMIReplacements(awsClient *aws.Client, patterns []string) []aws.AMIReplacement {
 	var allReplacements []aws.AMIReplacement
 
 	for _, accountID := range cfg.Accounts {
 		if cfg.Verbose {
-			fmt.Printf("Processing account: %s\n", accountID)
+			log.Printf("Processing account: %s", accountID)
 		}
 
-		accountReplacements, err := processAccount(awsClient, accountID, patterns)
-		if err != nil {
-			return nil, err
-		}
-
+		accountReplacements := processAccount(awsClient, accountID, patterns)
 		allReplacements = append(allReplacements, accountReplacements...)
 	}
 
-	return allReplacements, nil
+	return allReplacements
 }
 
-func processAccount(awsClient *aws.Client, accountID string, patterns []string) ([]aws.AMIReplacement, error) {
+func processAccount(awsClient *aws.Client, accountID string, patterns []string) []aws.AMIReplacement {
 	var accountReplacements []aws.AMIReplacement
 
 	for _, region := range cfg.Regions {
 		if cfg.Verbose {
-			fmt.Printf("  Processing region: %s\n", region)
+			log.Printf("  Processing region: %s", region)
 		}
 
 		replacements, err := awsClient.GetLatestAMIs(accountID, region, patterns)
 		if err != nil {
-			fmt.Printf("Warning: failed to get AMIs for account %s, region %s: %v\n", accountID, region, err)
+			log.Printf("Warning: failed to get AMIs for account %s, region %s: %v", accountID, region, err)
+
 			continue
 		}
 
 		accountReplacements = append(accountReplacements, replacements...)
 
 		if cfg.Verbose {
-			fmt.Printf("    Found %d AMI replacements\n", len(replacements))
+			log.Printf("    Found %d AMI replacements", len(replacements))
 		}
 	}
 
-	return accountReplacements, nil
+	return accountReplacements
 }
 
-func processFiles(fileProcessor *fileprocessor.Processor, fileInfo os.FileInfo, allReplacements []aws.AMIReplacement) error {
+func processFiles(fileProcessor *fileprocessor.Processor, fileInfo os.FileInfo,
+	allReplacements []aws.AMIReplacement,
+) error {
 	var err error
 	if fileInfo.IsDir() {
 		err = fileProcessor.ProcessDirectory(cfg.File, allReplacements)

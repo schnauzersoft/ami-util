@@ -2,25 +2,9 @@ version: "2"
 linters:
   default: all
   disable:
-    - err113
     - exhaustruct
-    - forbidigo
-    - forcetypeassert
-    - funcorder
-    - funlen
     - gochecknoglobals
     - gochecknoinits
-    - goconst
-    - lll
-    - mnd
-    - paralleltest
-    - revive
-    - tagliatelle
-    - testpackage
-    - thelper
-    - unparam
-    - varnamelen
-    - wrapcheck
     - wsl
   exclusions:
     generated: lax

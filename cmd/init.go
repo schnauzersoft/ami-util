@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/schnauzersoft/ami-util/internal/config"
@@ -13,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// initCmd represents the init command
+// initCmd represents the init command.
 var initCmd = &cobra.Command{
 	Use:   "init [filename]",
 	Short: "Initialize a configuration file",
@@ -27,8 +28,9 @@ Examples:
   ami-util init my-config.yaml     # Creates my-config.yaml
   ami-util init config.toml        # Creates config.toml`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := runInit(args); err != nil {
+	Run: func(_ *cobra.Command, args []string) {
+		err := runInit(args)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -64,13 +66,14 @@ func runInit(args []string) error {
 	}
 
 	// Save configuration
-	if err := config.SaveConfig(sampleConfig, filename); err != nil {
+	err := config.SaveConfig(sampleConfig, filename)
+	if err != nil {
 		return fmt.Errorf("failed to create configuration file: %w", err)
 	}
 
-	fmt.Printf("Configuration file created: %s\n", filename)
-	fmt.Printf("Edit the file to customize your settings, then run:\n")
-	fmt.Printf("  ami-util --file your-target-file.yaml\n")
+	log.Printf("Configuration file created: %s", filename)
+	log.Printf("Edit the file to customize your settings, then run:")
+	log.Printf("  ami-util --file your-target-file.yaml")
 
 	return nil
 }

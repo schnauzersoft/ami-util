@@ -6,12 +6,17 @@ package fileprocessor
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/schnauzersoft/ami-util/internal/aws"
+)
+
+const (
+	FilePerm = 0o600
 )
 
 type Processor struct {
@@ -35,21 +40,26 @@ func (p *Processor) ProcessFile(filePath string, replacements []aws.AMIReplaceme
 
 	if replaceCount == 0 {
 		if p.verbose {
-			fmt.Printf("No AMI replacements needed in %s\n", filePath)
+			log.Printf("No AMI replacements needed in %s", filePath)
 		}
+
 		return nil
 	}
 
 	backupPath := filePath + ".backup"
-	if err := os.WriteFile(backupPath, content, 0o644); err != nil {
+
+	err = os.WriteFile(backupPath, content, FilePerm)
+	if err != nil {
 		return fmt.Errorf("failed to create backup file: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, []byte(newContent), 0o644); err != nil {
+	err = os.WriteFile(filePath, []byte(newContent), FilePerm)
+	if err != nil {
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 
-	fmt.Printf("Updated %d AMI references in %s (backup created at %s)\n", replaceCount, filePath, backupPath)
+	log.Printf("Updated %d AMI references in %s (backup created at %s)", replaceCount, filePath, backupPath)
+
 	return nil
 }
 
@@ -59,13 +69,20 @@ func (p *Processor) ProcessDirectory(dirPath string, replacements []aws.AMIRepla
 		return err
 	}
 
-	totalReplacements, err := p.processFiles(files, replacements)
+	totalReplacements := p.processFiles(files, replacements)
+
+	log.Printf("Total AMI replacements made: %d across %d files", totalReplacements, len(files))
+
+	return nil
+}
+
+func (p *Processor) FindAMIsInFile(filePath string) ([]string, error) {
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
 
-	fmt.Printf("Total AMI replacements made: %d across %d files\n", totalReplacements, len(files))
-	return nil
+	return aws.ExtractAMIPatterns(string(content)), nil
 }
 
 func (p *Processor) collectFiles(dirPath string) ([]string, error) {
@@ -93,20 +110,21 @@ func (p *Processor) collectFiles(dirPath string) ([]string, error) {
 	return files, nil
 }
 
-func (p *Processor) processFiles(files []string, replacements []aws.AMIReplacement) (int, error) {
+func (p *Processor) processFiles(files []string, replacements []aws.AMIReplacement) int {
 	totalReplacements := 0
 
 	for _, file := range files {
 		replaceCount, err := p.processSingleFile(file, replacements)
 		if err != nil {
-			fmt.Printf("Warning: failed to process file %s: %v\n", file, err)
+			log.Printf("Warning: failed to process file %s: %v", file, err)
+
 			continue
 		}
 
 		totalReplacements += replaceCount
 	}
 
-	return totalReplacements, nil
+	return totalReplacements
 }
 
 func (p *Processor) processSingleFile(file string, replacements []aws.AMIReplacement) (int, error) {
@@ -119,13 +137,14 @@ func (p *Processor) processSingleFile(file string, replacements []aws.AMIReplace
 	newContent, replaceCount := aws.ReplaceAMIsInContent(originalContent, replacements)
 
 	if replaceCount > 0 {
-		if err := p.updateFileWithBackup(file, content, newContent); err != nil {
+		err := p.updateFileWithBackup(file, content, newContent)
+		if err != nil {
 			return 0, err
 		}
 
-		fmt.Printf("Updated %d AMI references in %s (backup created at %s)\n", replaceCount, file, file+".backup")
+		log.Printf("Updated %d AMI references in %s (backup created at %s)", replaceCount, file, file+".backup")
 	} else if p.verbose {
-		fmt.Printf("No AMI replacements needed in %s\n", file)
+		log.Printf("No AMI replacements needed in %s", file)
 	}
 
 	return replaceCount, nil
@@ -133,11 +152,14 @@ func (p *Processor) processSingleFile(file string, replacements []aws.AMIReplace
 
 func (p *Processor) updateFileWithBackup(file string, originalContent []byte, newContent string) error {
 	backupPath := file + ".backup"
-	if err := os.WriteFile(backupPath, originalContent, 0o644); err != nil {
+
+	err := os.WriteFile(backupPath, originalContent, FilePerm)
+	if err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
-	if err := os.WriteFile(file, []byte(newContent), 0o644); err != nil {
+	err = os.WriteFile(file, []byte(newContent), FilePerm)
+	if err != nil {
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 
@@ -178,14 +200,6 @@ func (p *Processor) isTextFile(filePath string) bool {
 	}
 
 	amiRegex := regexp.MustCompile(`ami-[a-f0-9]{8,17}`)
+
 	return amiRegex.Match(content)
-}
-
-func (p *Processor) FindAMIsInFile(filePath string) ([]string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	return aws.ExtractAMIPatterns(string(content)), nil
 }

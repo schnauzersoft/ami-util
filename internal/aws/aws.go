@@ -66,6 +66,7 @@ func (c *Client) AssumeRole(accountID string) (*session.Session, error) {
 	if roleARN == "" {
 		roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
+
 	if roleARN == "" {
 		roleARN = fmt.Sprintf("arn:aws:iam::%s:role/BP-Ec2DescribeImagesRole", accountID)
 	}
@@ -101,6 +102,7 @@ func (c *Client) GetLatestAMIs(accountID, region string, patterns []string) ([]A
 	}
 
 	ec2Client := ec2.New(sess, &aws.Config{Region: aws.String(region)})
+
 	var replacements []AMIReplacement
 
 	for _, pattern := range patterns {
@@ -143,10 +145,10 @@ func (c *Client) findAMIsByPattern(ec2Client *ec2.EC2, owner, pattern string) ([
 
 	result, err := ec2Client.DescribeImages(input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to describe images: %w", err)
 	}
 
-	var amis []AMIInfo
+	amis := make([]AMIInfo, 0, len(result.Images))
 	for _, image := range result.Images {
 		creationDate, err := time.Parse(time.RFC3339, *image.CreationDate)
 		if err != nil {
@@ -173,7 +175,7 @@ func ExtractAMIPatterns(content string) []string {
 		amiMap[ami] = true
 	}
 
-	var amis []string
+	amis := make([]string, 0, len(amiMap))
 	for ami := range amiMap {
 		amis = append(amis, ami)
 	}

@@ -5,6 +5,7 @@ Copyright © 2025 Ben Sapp ya.bsapp.ru
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,14 +13,23 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	DefaultDirPerm = 0o755
+)
+
+var (
+	ErrNoAccountID = errors.New("at least one account ID is required")
+	ErrNoFilePath  = errors.New("file path is required")
+)
+
 type Config struct {
-	Accounts []string `mapstructure:"accounts" yaml:"accounts" toml:"accounts"`
-	File     string   `mapstructure:"file" yaml:"file" toml:"file"`
-	Profile  string   `mapstructure:"profile" yaml:"profile" toml:"profile"`
-	Verbose  bool     `mapstructure:"verbose" yaml:"verbose" toml:"verbose"`
-	Regions  []string `mapstructure:"regions" yaml:"regions" toml:"regions"`
-	RoleARN  string   `mapstructure:"role_arn" yaml:"role_arn" toml:"role_arn"`
-	Patterns []string `mapstructure:"patterns" yaml:"patterns" toml:"patterns"`
+	Accounts []string `mapstructure:"accounts" toml:"accounts" yaml:"accounts"`
+	File     string   `mapstructure:"file"     toml:"file"     yaml:"file"`
+	Profile  string   `mapstructure:"profile"  toml:"profile"  yaml:"profile"`
+	Verbose  bool     `mapstructure:"verbose"  toml:"verbose"  yaml:"verbose"`
+	Regions  []string `mapstructure:"regions"  toml:"regions"  yaml:"regions"`
+	RoleARN  string   `mapstructure:"role_arn" toml:"role_arn" yaml:"roleArn"`
+	Patterns []string `mapstructure:"patterns" toml:"patterns" yaml:"patterns"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -54,22 +64,26 @@ func LoadConfig() (*Config, error) {
 	viper.SetEnvPrefix("AMI")
 	viper.AutomaticEnv()
 
-	viper.BindEnv("accounts", "AMI_ACCOUNTS")
-	viper.BindEnv("file", "AMI_FILE")
-	viper.BindEnv("profile", "AMI_PROFILE")
-	viper.BindEnv("verbose", "AMI_VERBOSE")
-	viper.BindEnv("regions", "AMI_REGIONS")
-	viper.BindEnv("role_arn", "AMI_ROLE_ARN")
-	viper.BindEnv("patterns", "AMI_PATTERNS")
+	_ = viper.BindEnv("accounts", "AMI_ACCOUNTS")
+	_ = viper.BindEnv("file", "AMI_FILE")
+	_ = viper.BindEnv("profile", "AMI_PROFILE")
+	_ = viper.BindEnv("verbose", "AMI_VERBOSE")
+	_ = viper.BindEnv("regions", "AMI_REGIONS")
+	_ = viper.BindEnv("role_arn", "AMI_ROLE_ARN")
+	_ = viper.BindEnv("patterns", "AMI_PATTERNS")
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+	err := viper.ReadInConfig()
+	if err != nil {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if !errors.As(err, &configFileNotFoundError) {
 			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
 	}
 
 	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
+
+	err = viper.Unmarshal(&config)
+	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
@@ -78,7 +92,9 @@ func LoadConfig() (*Config, error) {
 
 func SaveConfig(config *Config, filename string) error {
 	dir := filepath.Dir(filename)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+
+	err := os.MkdirAll(dir, DefaultDirPerm)
+	if err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -92,7 +108,8 @@ func SaveConfig(config *Config, filename string) error {
 	viper.Set("role_arn", config.RoleARN)
 	viper.Set("patterns", config.Patterns)
 
-	if err := viper.WriteConfigAs(filename); err != nil {
+	err = viper.WriteConfigAs(filename)
+	if err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -101,10 +118,12 @@ func SaveConfig(config *Config, filename string) error {
 
 func ValidateConfig(config *Config) error {
 	if len(config.Accounts) == 0 {
-		return fmt.Errorf("at least one account ID is required")
+		return ErrNoAccountID
 	}
+
 	if config.File == "" {
-		return fmt.Errorf("file path is required")
+		return ErrNoFilePath
 	}
+
 	return nil
 }
