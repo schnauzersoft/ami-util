@@ -112,7 +112,7 @@ detect_platform() {
         *)              log_error "Unsupported architecture: $(uname -m)"; exit 1 ;;
     esac
     
-    echo "${os}_${arch}"
+    echo "${os}-${arch}"
 }
 
 command_exists() {
@@ -148,7 +148,7 @@ get_latest_release() {
 
 verify_signature() {
     local binary="$1"
-    
+
     if [[ "$NO_VERIFY" == "true" ]]; then
         log_warning "Skipping signature verification"
         return 0
@@ -230,7 +230,7 @@ main() {
     
     mkdir -p "$INSTALL_DIR"
     
-    local download_url="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}_${VERSION}_${platform}.tar.gz"
+    local download_url="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}-${VERSION}-${platform}.tar.gz"
     local temp_dir
     temp_dir=$(mktemp -d)
     local archive_path="${temp_dir}/${BINARY_NAME}.tar.gz"
@@ -242,26 +242,26 @@ main() {
     tar -xzf "$archive_path" -C "$temp_dir"
     
     local extracted_binary
-    extracted_binary=$(find "$temp_dir" -name "$BINARY_NAME" -type f | head -1)
+    extracted_binary=$(find "$temp_dir" -name "${BINARY_NAME}*" -type f ! -name "*.tar.gz" ! -name "*.sig" | head -1)
     
     if [[ -z "$extracted_binary" ]]; then
         log_error "Binary not found in archive"
         exit 1
     fi
     
-    verify_signature "$extracted_binary"
-    
     log_info "Installing binary to $binary_path"
     cp "$extracted_binary" "$binary_path"
     chmod +x "$binary_path"
     
+    verify_signature "$binary_path"
+
     add_to_path "$binary_path"
     
     rm -rf "$temp_dir"
     
     if command_exists "$BINARY_NAME"; then
         local installed_version
-        installed_version=$("$BINARY_NAME" --version 2>/dev/null || echo "unknown")
+        installed_version=$("$BINARY_NAME" version 2>/dev/null | head -1 | sed 's/ami-util version //' || echo "unknown")
         log_success "Installation completed successfully!"
         log_info "Version: $installed_version"
         log_info "Location: $binary_path"
