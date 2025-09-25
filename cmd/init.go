@@ -53,6 +53,14 @@ func runInit(args []string) error {
 		Verbose:  false,
 		Regions:  []string{"us-east-1", "us-west-2"},
 		RoleARN:  "",
+		Patterns: []string{
+			"al2023-ami-*",
+			"al2023-ami-kernel-*",
+			"al2023-ami-minimal-*",
+			"al2023-ami-docker-*",
+			"al2023-ami-ecs-*",
+			"al2023-ami-eks-*",
+		},
 	}
 
 	// Save configuration

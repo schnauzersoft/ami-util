@@ -41,11 +41,11 @@ func (p *Processor) ProcessFile(filePath string, replacements []aws.AMIReplaceme
 	}
 
 	backupPath := filePath + ".backup"
-	if err := os.WriteFile(backupPath, content, 0644); err != nil {
+	if err := os.WriteFile(backupPath, content, 0o644); err != nil {
 		return fmt.Errorf("failed to create backup file: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(newContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 
@@ -86,7 +86,6 @@ func (p *Processor) collectFiles(dirPath string) ([]string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk directory %s: %w", dirPath, err)
 	}
@@ -134,11 +133,11 @@ func (p *Processor) processSingleFile(file string, replacements []aws.AMIReplace
 
 func (p *Processor) updateFileWithBackup(file string, originalContent []byte, newContent string) error {
 	backupPath := file + ".backup"
-	if err := os.WriteFile(backupPath, originalContent, 0644); err != nil {
+	if err := os.WriteFile(backupPath, originalContent, 0o644); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
-	if err := os.WriteFile(file, []byte(newContent), 0644); err != nil {
+	if err := os.WriteFile(file, []byte(newContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write updated file: %w", err)
 	}
 

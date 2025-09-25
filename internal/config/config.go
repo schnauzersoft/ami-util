@@ -19,12 +19,21 @@ type Config struct {
 	Verbose  bool     `mapstructure:"verbose" yaml:"verbose" toml:"verbose"`
 	Regions  []string `mapstructure:"regions" yaml:"regions" toml:"regions"`
 	RoleARN  string   `mapstructure:"role_arn" yaml:"role_arn" toml:"role_arn"`
+	Patterns []string `mapstructure:"patterns" yaml:"patterns" toml:"patterns"`
 }
 
 func LoadConfig() (*Config, error) {
 	viper.SetDefault("profile", "default")
 	viper.SetDefault("verbose", false)
 	viper.SetDefault("regions", []string{"us-east-1", "us-west-2"})
+	viper.SetDefault("patterns", []string{
+		"al2023-ami-*",
+		"al2023-ami-kernel-*",
+		"al2023-ami-minimal-*",
+		"al2023-ami-docker-*",
+		"al2023-ami-ecs-*",
+		"al2023-ami-eks-*",
+	})
 
 	viper.SetConfigName("ami")
 	viper.SetConfigType("yaml")
@@ -51,6 +60,7 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("verbose", "AMI_VERBOSE")
 	viper.BindEnv("regions", "AMI_REGIONS")
 	viper.BindEnv("role_arn", "AMI_ROLE_ARN")
+	viper.BindEnv("patterns", "AMI_PATTERNS")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -68,7 +78,7 @@ func LoadConfig() (*Config, error) {
 
 func SaveConfig(config *Config, filename string) error {
 	dir := filepath.Dir(filename)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -80,6 +90,7 @@ func SaveConfig(config *Config, filename string) error {
 	viper.Set("verbose", config.Verbose)
 	viper.Set("regions", config.Regions)
 	viper.Set("role_arn", config.RoleARN)
+	viper.Set("patterns", config.Patterns)
 
 	if err := viper.WriteConfigAs(filename); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)

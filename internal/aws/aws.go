@@ -181,12 +181,6 @@ func ExtractAMIPatterns(content string) []string {
 	return amis
 }
 
-func GenerateAMIPatterns() []string {
-	return []string{
-		"test-*",
-	}
-}
-
 func ReplaceAMIsInContent(content string, replacements []AMIReplacement) (string, int) {
 	replaceCount := 0
 	newContent := content

@@ -17,9 +17,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	cfg *config.Config
-)
+var cfg *config.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -50,15 +48,25 @@ AWS Authentication:
   - AWS_ROLE_SESSION_NAME: Session name for role assumption (default: "UpdateToLatestAMI")
   - AWS_ROLE_EXTERNAL_ID: External ID for role assumption (optional)
 
+AMI Patterns:
+  The tool searches for AMI images matching specified patterns. Default patterns
+  include Amazon Linux 2023 AMI types. You can override these with:
+  - --patterns flag: Comma-separated list of patterns
+  - AMI_PATTERNS environment variable
+  - patterns key in configuration file
+
 Examples:
   # Using command line flags
   ami-util --account-ids 123456789012,987654321098 --file config.yaml
+
+  # Using custom patterns
+  ami-util --account-ids 123456789012 --file config.yaml --patterns "my-app-*","my-service-*"
   
   # Using configuration file
-  ami-util --file config.yaml  # account-ids from ami.yaml
+  ami-util --file config.yaml  # account-ids and patterns from ami.yaml
   
   # Using environment variables
-  AMI_ACCOUNTS=123456789012,987654321098 ami-util --file config.yaml
+  AMI_ACCOUNTS=123456789012,987654321098 AMI_PATTERNS="my-app-*" ami-util --file config.yaml
   
   # Mixed usage
   ami-util --account-ids 123456789012 --file config.yaml --profile myprofile`,
@@ -111,6 +119,7 @@ func init() {
 	rootCmd.Flags().Bool("verbose", false, "Enable verbose output")
 	rootCmd.Flags().StringSlice("regions", []string{"us-east-1", "us-west-2"}, "Comma-separated list of AWS regions to search")
 	rootCmd.Flags().String("role-arn", "", "Role ARN to assume (overrides AWS_ROLE_ARN env var)")
+	rootCmd.Flags().StringSlice("patterns", []string{}, "Comma-separated list of AMI name patterns to search for")
 
 	// Bind flags to viper
 	viper.BindPFlag("accounts", rootCmd.Flags().Lookup("account-ids"))
@@ -119,6 +128,7 @@ func init() {
 	viper.BindPFlag("verbose", rootCmd.Flags().Lookup("verbose"))
 	viper.BindPFlag("regions", rootCmd.Flags().Lookup("regions"))
 	viper.BindPFlag("role_arn", rootCmd.Flags().Lookup("role-arn"))
+	viper.BindPFlag("patterns", rootCmd.Flags().Lookup("patterns"))
 
 	// Mark required flags
 	rootCmd.MarkFlagRequired("file")
@@ -216,8 +226,8 @@ func getFileInfoAndPatterns(fileProcessor *fileprocessor.Processor) (os.FileInfo
 		}
 		patterns = filePatterns
 	} else {
-		// Use default patterns for directory processing
-		patterns = aws.GenerateAMIPatterns()
+		// Use configured patterns for directory processing
+		patterns = cfg.Patterns
 	}
 
 	return fileInfo, patterns, nil
