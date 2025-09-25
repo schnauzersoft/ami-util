@@ -1,0 +1,78 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - err113
+    - exhaustruct
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - goconst
+    - lll
+    - mnd
+    - paralleltest
+    - revive
+    - tagliatelle
+    - testpackage
+    - thelper
+    - unparam
+    - varnamelen
+    - wrapcheck
+    - wsl
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+  settings:
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - github.com/aws/aws-sdk-go
+            - github.com/schnauzersoft/ami-util/cmd
+            - github.com/schnauzersoft/ami-util/internal/config
+            - github.com/schnauzersoft/ami-util/internal/aws
+            - github.com/schnauzersoft/ami-util/internal/fileprocessor
+            - github.com/spf13/cobra
+            - github.com/spf13/viper
+            - github.com/davecgh/go-spew
+            - github.com/fsnotify/fsnotify
+            - github.com/go-viper/mapstructure/v2
+            - github.com/inconshreveable/mousetrap
+            - github.com/jmespath/go-jmespath
+            - github.com/pelletier/go-toml/v2
+            - github.com/pmezard/go-difflib
+            - github.com/sagikazarmark/locafero
+            - github.com/sourcegraph/conc
+            - github.com/spf13/afero
+            - github.com/spf13/cast
+            - github.com/spf13/pflag
+            - github.com/subosito/gotenv
+            - go.yaml.in/yaml/v3
+            - golang.org/x/sys
+            - golang.org/x/text
+    dupl:
+      threshold: 170
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

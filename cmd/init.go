@@ -1,0 +1,68 @@
+/*
+Copyright © 2025 Ben Sapp ya.bsapp.ru
+*/
+
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/schnauzersoft/ami-util/internal/config"
+
+	"github.com/spf13/cobra"
+)
+
+// initCmd represents the init command
+var initCmd = &cobra.Command{
+	Use:   "init [filename]",
+	Short: "Initialize a configuration file",
+	Long: `Initialize a configuration file with default values.
+
+This command creates a sample configuration file that you can customize
+for your environment. The file can be in YAML, YML, or TOML format.
+
+Examples:
+  ami-util init                    # Creates ami.yaml
+  ami-util init my-config.yaml     # Creates my-config.yaml
+  ami-util init config.toml        # Creates config.toml`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := runInit(args); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(initCmd)
+}
+
+func runInit(args []string) error {
+	filename := "ami.yaml"
+	if len(args) > 0 {
+		filename = args[0]
+	}
+
+	// Create sample configuration
+	sampleConfig := &config.Config{
+		Accounts: []string{"137112412989", "123456789012", "987654321098"},
+		File:     "config.yaml",
+		Profile:  "default",
+		Verbose:  false,
+		Regions:  []string{"us-east-1", "us-west-2"},
+		RoleARN:  "",
+	}
+
+	// Save configuration
+	if err := config.SaveConfig(sampleConfig, filename); err != nil {
+		return fmt.Errorf("failed to create configuration file: %w", err)
+	}
+
+	fmt.Printf("Configuration file created: %s\n", filename)
+	fmt.Printf("Edit the file to customize your settings, then run:\n")
+	fmt.Printf("  ami-util --file your-target-file.yaml\n")
+
+	return nil
+}
