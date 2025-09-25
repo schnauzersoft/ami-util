@@ -68,7 +68,7 @@ func (c *Client) AssumeRole(accountID string) (*session.Session, error) {
 	}
 
 	if roleARN == "" {
-		roleARN = fmt.Sprintf("arn:aws:iam::%s:role/BP-Ec2DescribeImagesRole", accountID)
+		roleARN = fmt.Sprintf("arn:aws:iam::%s:role/EC2ImagesReadOnly", accountID)
 	}
 
 	sessionName := os.Getenv("AWS_ROLE_SESSION_NAME")
