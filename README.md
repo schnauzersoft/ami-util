@@ -20,6 +20,25 @@ A CLI tool that automatically updates AMI IDs (ami-xxxxx) in configuration files
 
 ## Installation
 
+### Quickstart
+
+```bash
+$ curl -sSL https://raw.githubusercontent.com/schnauzersoft/ami-util/main/install.sh | bash
+```
+
+Or with specific options:
+
+```bash
+# Install specific version
+$ curl -sSL https://raw.githubusercontent.com/schnauzersoft/ami-util/main/install.sh | bash -s -- --version v1.0.1
+
+# Install to custom directory
+$ curl -sSL https://raw.githubusercontent.com/schnauzersoft/ami-util/main/install.sh | bash -s -- --dir /usr/local/bin
+
+# Install without adding to PATH
+$ curl -sSL https://raw.githubusercontent.com/schnauzersoft/ami-util/main/install.sh | bash -s -- --no-path
+```
+
 ### Build from Source
 
 ```bash

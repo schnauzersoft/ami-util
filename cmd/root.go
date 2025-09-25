@@ -18,6 +18,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	Version   = "dev"
+	CommitSHA = "unknown"
+	BuildTime = "unknown"
+)
+
 var cfg *config.Config
 
 // rootCmd represents the base command when called without any subcommands.
