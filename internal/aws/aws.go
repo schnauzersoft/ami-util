@@ -5,6 +5,7 @@ Copyright © 2025 Ben Sapp ya.bsapp.ru
 package aws
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,11 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 var (
@@ -40,38 +42,40 @@ type AMIReplacement struct {
 }
 
 type Client struct {
-	session *session.Session
-	ec2     *ec2.EC2
-	sts     *sts.STS
+	cfg     aws.Config
+	ec2     *ec2.Client
+	sts     *sts.Client
 	profile string
 	roleARN string
 }
 
 func NewClient(profile, roleARN string) (*Client, error) {
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile: profile,
-	})
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AWS session: %w", err)
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
 	return &Client{
-		session: sess,
-		ec2:     ec2.New(sess),
-		sts:     sts.New(sess),
+		cfg:     cfg,
+		ec2:     ec2.NewFromConfig(cfg),
+		sts:     sts.NewFromConfig(cfg),
 		profile: profile,
 		roleARN: roleARN,
 	}, nil
 }
 
-func (c *Client) AssumeRole() (*session.Session, error) {
+func (c *Client) AssumeRole() (aws.Config, error) {
 	roleARN := c.roleARN
 	if roleARN == "" {
 		roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
 
 	if roleARN == "" {
-		return c.session, nil
+		return c.cfg, nil
 	}
 
 	sessionName := os.Getenv("AWS_ROLE_SESSION_NAME")
@@ -81,30 +85,29 @@ func (c *Client) AssumeRole() (*session.Session, error) {
 
 	externalID := os.Getenv("AWS_ROLE_EXTERNAL_ID")
 
-	creds := stscreds.NewCredentials(c.session, roleARN, func(p *stscreds.AssumeRoleProvider) {
-		p.RoleSessionName = sessionName
+	stsClient := sts.NewFromConfig(c.cfg)
+
+	assumeRoleProvider := stscreds.NewAssumeRoleProvider(stsClient, roleARN, func(o *stscreds.AssumeRoleOptions) {
+		o.RoleSessionName = sessionName
 		if externalID != "" {
-			p.ExternalID = aws.String(externalID)
+			o.ExternalID = aws.String(externalID)
 		}
 	})
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: creds,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create session with assumed role: %w", err)
-	}
+	cfg := c.cfg.Copy()
+	cfg.Credentials = aws.NewCredentialsCache(assumeRoleProvider)
 
-	return sess, nil
+	return cfg, nil
 }
 
 func (c *Client) GetLatestAMIs(accountID, region string, patterns []string) ([]AMIReplacement, error) {
-	sess, err := c.getSession()
+	cfg, err := c.getConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get session for account %s: %w", accountID, err)
+		return nil, fmt.Errorf("failed to get config for account %s: %w", accountID, err)
 	}
 
-	ec2Client := ec2.New(sess, &aws.Config{Region: aws.String(region)})
+	cfg.Region = region
+	ec2Client := ec2.NewFromConfig(cfg)
 
 	var replacements []AMIReplacement
 
@@ -121,12 +124,12 @@ func (c *Client) GetLatestAMIs(accountID, region string, patterns []string) ([]A
 }
 
 func (c *Client) GetRegion() (string, error) {
-	sess, err := c.getSession()
+	cfg, err := c.getConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to get session: %w", err)
+		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
-	region := aws.StringValue(sess.Config.Region)
+	region := cfg.Region
 	if region == "" {
 		return "", ErrNoRegion
 	}
@@ -134,15 +137,15 @@ func (c *Client) GetRegion() (string, error) {
 	return region, nil
 }
 
-func (c *Client) getSession() (*session.Session, error) {
+func (c *Client) getConfig() (aws.Config, error) {
 	if c.roleARN != "" || os.Getenv("AWS_ROLE_ARN") != "" {
 		return c.AssumeRole()
 	}
 
-	return c.session, nil
+	return c.cfg, nil
 }
 
-func (c *Client) processPattern(ec2Client *ec2.EC2, accountID, pattern string) ([]AMIReplacement, error) {
+func (c *Client) processPattern(ec2Client *ec2.Client, accountID, pattern string) ([]AMIReplacement, error) {
 	if strings.HasPrefix(pattern, "ami-") {
 		return c.processAMIID(ec2Client, accountID, pattern)
 	}
@@ -150,7 +153,7 @@ func (c *Client) processPattern(ec2Client *ec2.EC2, accountID, pattern string) (
 	return c.processPatternBased(ec2Client, accountID, pattern)
 }
 
-func (c *Client) processAMIID(ec2Client *ec2.EC2, accountID, amiID string) ([]AMIReplacement, error) {
+func (c *Client) processAMIID(ec2Client *ec2.Client, accountID, amiID string) ([]AMIReplacement, error) {
 	amiInfo, err := c.findAMIByID(ec2Client, accountID, amiID)
 	if err != nil {
 		if errors.Is(err, ErrAMINotFound) {
@@ -190,7 +193,7 @@ func (c *Client) processAMIID(ec2Client *ec2.EC2, accountID, amiID string) ([]AM
 	return nil, nil
 }
 
-func (c *Client) processPatternBased(ec2Client *ec2.EC2, accountID, pattern string) ([]AMIReplacement, error) {
+func (c *Client) processPatternBased(ec2Client *ec2.Client, accountID, pattern string) ([]AMIReplacement, error) {
 	amis, err := c.findAMIsByPattern(ec2Client, accountID, pattern)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find AMIs for pattern %s: %w", pattern, err)
@@ -218,13 +221,14 @@ func (c *Client) processPatternBased(ec2Client *ec2.EC2, accountID, pattern stri
 	return replacements, nil
 }
 
-func (c *Client) findAMIByID(ec2Client *ec2.EC2, owner, amiID string) (*AMIInfo, error) {
+func (c *Client) findAMIByID(ec2Client *ec2.Client, owner, amiID string) (*AMIInfo, error) {
+	ctx := context.Background()
 	input := &ec2.DescribeImagesInput{
-		ImageIds: []*string{aws.String(amiID)},
-		Owners:   []*string{aws.String(owner)},
+		ImageIds: []string{amiID},
+		Owners:   []string{owner},
 	}
 
-	result, err := ec2Client.DescribeImages(input)
+	result, err := ec2Client.DescribeImages(ctx, input)
 	if err != nil {
 		if strings.Contains(err.Error(), "InvalidAMIID.NotFound") || strings.Contains(err.Error(), "does not exist") {
 			return nil, ErrAMINotFound
@@ -239,45 +243,46 @@ func (c *Client) findAMIByID(ec2Client *ec2.EC2, owner, amiID string) (*AMIInfo,
 
 	image := result.Images[0]
 
-	creationDate, err := time.Parse(time.RFC3339, *image.CreationDate)
+	creationDate, err := time.Parse(time.RFC3339, aws.ToString(image.CreationDate))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse creation date for AMI %s: %w", amiID, err)
 	}
 
 	return &AMIInfo{
-		ImageID:      *image.ImageId,
-		Name:         *image.Name,
+		ImageID:      aws.ToString(image.ImageId),
+		Name:         aws.ToString(image.Name),
 		CreationDate: creationDate,
 		Owner:        owner,
 	}, nil
 }
 
-func (c *Client) findAMIsByPattern(ec2Client *ec2.EC2, owner, pattern string) ([]AMIInfo, error) {
+func (c *Client) findAMIsByPattern(ec2Client *ec2.Client, owner, pattern string) ([]AMIInfo, error) {
+	ctx := context.Background()
 	input := &ec2.DescribeImagesInput{
-		Filters: []*ec2.Filter{
+		Filters: []types.Filter{
 			{
 				Name:   aws.String("name"),
-				Values: []*string{aws.String(pattern)},
+				Values: []string{pattern},
 			},
 		},
-		Owners: []*string{aws.String(owner)},
+		Owners: []string{owner},
 	}
 
-	result, err := ec2Client.DescribeImages(input)
+	result, err := ec2Client.DescribeImages(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe images: %w", err)
 	}
 
 	amis := make([]AMIInfo, 0, len(result.Images))
 	for _, image := range result.Images {
-		creationDate, err := time.Parse(time.RFC3339, *image.CreationDate)
+		creationDate, err := time.Parse(time.RFC3339, aws.ToString(image.CreationDate))
 		if err != nil {
 			continue
 		}
 
 		amis = append(amis, AMIInfo{
-			ImageID:      *image.ImageId,
-			Name:         *image.Name,
+			ImageID:      aws.ToString(image.ImageId),
+			Name:         aws.ToString(image.Name),
 			CreationDate: creationDate,
 			Owner:        owner,
 		})
