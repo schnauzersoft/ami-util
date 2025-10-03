@@ -49,14 +49,6 @@ for target in "${TARGETS[@]}"; do
     
     cp "dist/${binary_name}" "$release_dir/"
     
-    if [ -f "README.md" ]; then
-        cp "README.md" "$release_dir/"
-    fi
-    
-    if [ -f "LICENSE" ]; then
-        cp "LICENSE" "$release_dir/"
-    fi
-    
     cd dist
     tar -czf "ami-util-${CLEAN_VERSION}-${os}-${arch}.tar.gz" "ami-util-${CLEAN_VERSION}-${os}-${arch}/"
     cd ..
@@ -77,20 +69,14 @@ for target in "${TARGETS[@]}"; do
     
     echo "  ✓ Built: ami-util-${CLEAN_VERSION}-${os}-${arch}.tar.gz (${size} bytes)"
 done
-
-echo ""
-echo "Build complete! Release files created in dist/ directory:"
-ls -la dist/
-
-echo ""
-echo "To test a binary:"
-echo "  tar -xzf dist/ami-util-${CLEAN_VERSION}-linux-amd64.tar.gz"
-echo "  ./ami-util-${CLEAN_VERSION}-linux-amd64/ami-util-${CLEAN_VERSION} version"
-
-if [ -n "$COSIGN_PASSWORD" ]; then
-    echo ""
-    echo "To verify signatures:"
-    echo "  cosign verify-blob --key cosign.pub --signature dist/ami-util-${CLEAN_VERSION}-linux-amd64.tar.gz.sig dist/ami-util-${CLEAN_VERSION}-linux-amd64.tar.gz"
-fi
-
 rm dist/"ami-util-${CLEAN_VERSION}"
+
+echo ""
+echo "Generating Software Bill of Materials (SBOM)..."
+
+echo "  Generating source code SBOMs..."
+trivy fs --format spdx-json --output "dist/sbom.spdx.json" .
+trivy fs --format cyclonedx --output "dist/sbom.cyclonedx.json" .
+echo "  ✓ SBOM generation complete!"
+
+echo "Build complete!"

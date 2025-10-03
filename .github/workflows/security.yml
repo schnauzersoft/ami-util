@@ -1,0 +1,30 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Run security analysis daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  scan:
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+    - name: Install CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: go
+        build-mode: autobuild
+    - name: Analyze
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:go"
