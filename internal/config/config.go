@@ -35,7 +35,6 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	viper.SetDefault("profile", "default")
 	viper.SetDefault("verbose", false)
-	viper.SetDefault("regions", []string{"us-east-1", "us-west-2"})
 	viper.SetDefault("patterns", []string{
 		"al2023-ami-*",
 		"al2023-ami-kernel-*",
@@ -46,20 +45,25 @@ func LoadConfig() (*Config, error) {
 	})
 
 	viper.SetConfigName("ami")
-	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.ami-util")
 	viper.AddConfigPath("/etc/ami-util")
 
-	viper.SetConfigType("yml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.ami-util")
-	viper.AddConfigPath("/etc/ami-util")
+	configFormats := []string{"yaml", "yml", "toml"}
 
-	viper.SetConfigType("toml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("$HOME/.ami-util")
-	viper.AddConfigPath("/etc/ami-util")
+	for _, format := range configFormats {
+		viper.SetConfigType(format)
+
+		err := viper.ReadInConfig()
+		if err == nil {
+			break
+		}
+
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if !errors.As(err, &configFileNotFoundError) {
+			continue
+		}
+	}
 
 	viper.SetEnvPrefix("AMI")
 	viper.AutomaticEnv()
@@ -72,17 +76,9 @@ func LoadConfig() (*Config, error) {
 	_ = viper.BindEnv("role_arn", "AMI_ROLE_ARN")
 	_ = viper.BindEnv("patterns", "AMI_PATTERNS")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
-			return nil, fmt.Errorf("error reading config file: %w", err)
-		}
-	}
-
 	var config Config
 
-	err = viper.Unmarshal(&config)
+	err := viper.Unmarshal(&config)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}

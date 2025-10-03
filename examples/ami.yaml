@@ -1,0 +1,17 @@
+accounts:
+    - "092701018921"
+file: config.yaml
+patterns:
+    - al2023-ami-*
+    - al2023-ami-kernel-*
+    - al2023-ami-minimal-*
+    - al2023-ami-docker-*
+    - al2023-ami-ecs-*
+    - al2023-ami-eks-*
+    - bottlerocket-aws-ecs-2-aarch64-*
+profile: dev
+regions:
+    - us-east-1
+    - us-west-2
+role_arn: ""
+verbose: false

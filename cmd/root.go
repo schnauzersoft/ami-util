@@ -119,15 +119,14 @@ func init() {
 	// Set default values
 	viper.SetDefault("profile", "default")
 	viper.SetDefault("verbose", false)
-	viper.SetDefault("regions", []string{"us-east-1", "us-west-2"})
 
 	// Define flags
 	rootCmd.Flags().StringSlice("account-ids", []string{}, "Comma-separated list of AWS account IDs")
 	rootCmd.Flags().String("file", "", "Path to the configuration file to update")
 	rootCmd.Flags().String("profile", "default", "AWS profile to use for authentication")
 	rootCmd.Flags().Bool("verbose", false, "Enable verbose output")
-	rootCmd.Flags().StringSlice("regions", []string{"us-east-1", "us-west-2"},
-		"Comma-separated list of AWS regions to search")
+	rootCmd.Flags().StringSlice("regions", []string{},
+		"Comma-separated list of AWS regions to search (if not specified, will use region from AWS profile)")
 	rootCmd.Flags().String("role-arn", "", "Role ARN to assume (overrides AWS_ROLE_ARN env var)")
 	rootCmd.Flags().StringSlice("patterns", []string{}, "Comma-separated list of AMI name patterns to search for")
 
@@ -139,9 +138,6 @@ func init() {
 	_ = viper.BindPFlag("regions", rootCmd.Flags().Lookup("regions"))
 	_ = viper.BindPFlag("role_arn", rootCmd.Flags().Lookup("role-arn"))
 	_ = viper.BindPFlag("patterns", rootCmd.Flags().Lookup("patterns"))
-
-	// Mark required flags
-	_ = rootCmd.MarkFlagRequired("file")
 }
 
 func runUpdate() error {
@@ -206,7 +202,13 @@ func printConfigInfo() {
 	if cfg.Verbose {
 		log.Printf("Updating AMI IDs in file: %s", cfg.File)
 		log.Printf("Account IDs: %s", strings.Join(cfg.Accounts, ", "))
-		log.Printf("Regions: %s", strings.Join(cfg.Regions, ", "))
+
+		if len(cfg.Regions) > 0 {
+			log.Printf("Regions: %s", strings.Join(cfg.Regions, ", "))
+		} else {
+			log.Printf("Regions: will use region from AWS profile")
+		}
+
 		log.Printf("AWS Profile: %s", cfg.Profile)
 
 		if cfg.RoleARN != "" {
@@ -268,7 +270,20 @@ func collectAMIReplacements(awsClient *aws.Client, patterns []string) []aws.AMIR
 func processAccount(awsClient *aws.Client, accountID string, patterns []string) []aws.AMIReplacement {
 	var accountReplacements []aws.AMIReplacement
 
-	for _, region := range cfg.Regions {
+	regions := cfg.Regions
+	if len(regions) == 0 {
+		// No regions specified, get region from AWS profile
+		region, err := awsClient.GetRegion()
+		if err != nil {
+			log.Printf("Warning: failed to get region from AWS profile: %v", err)
+
+			return accountReplacements
+		}
+
+		regions = []string{region}
+	}
+
+	for _, region := range regions {
 		if cfg.Verbose {
 			log.Printf("  Processing region: %s", region)
 		}

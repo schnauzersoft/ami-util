@@ -167,33 +167,6 @@ func (p *Processor) updateFileWithBackup(file string, originalContent []byte, ne
 }
 
 func (p *Processor) isTextFile(filePath string) bool {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	textExtensions := map[string]bool{
-		".yaml": true,
-		".yml":  true,
-		".json": true,
-		".txt":  true,
-		".tf":   true,
-		".hcl":  true,
-		".conf": true,
-		".cfg":  true,
-		".ini":  true,
-		".env":  true,
-		".sh":   true,
-		".bash": true,
-		".zsh":  true,
-		".fish": true,
-		".ps1":  true,
-		".bat":  true,
-		".cmd":  true,
-		".xml":  true,
-		".toml": true,
-	}
-
-	if textExtensions[ext] {
-		return true
-	}
-
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return false
