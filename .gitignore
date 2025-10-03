@@ -1,7 +1,7 @@
 # Ignore ALL
 *
 
-# Aloow config
+# Allow repo config
 !/.gitignore
 !/.github/**
 !.golangci.yml
