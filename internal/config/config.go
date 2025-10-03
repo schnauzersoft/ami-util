@@ -35,7 +35,6 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	viper.SetDefault("profile", "default")
 	viper.SetDefault("verbose", false)
-	viper.SetDefault("regions", []string{"us-east-1", "us-west-2"})
 	viper.SetDefault("patterns", []string{
 		"al2023-ami-*",
 		"al2023-ami-kernel-*",

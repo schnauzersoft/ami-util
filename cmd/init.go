@@ -53,7 +53,7 @@ func runInit(args []string) error {
 		File:     "config.yaml",
 		Profile:  "default",
 		Verbose:  false,
-		Regions:  []string{"us-east-1", "us-west-2"},
+		Regions:  []string{},
 		RoleARN:  "",
 		Patterns: []string{
 			"al2023-ami-*",
