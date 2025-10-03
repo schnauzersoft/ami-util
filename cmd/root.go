@@ -138,9 +138,6 @@ func init() {
 	_ = viper.BindPFlag("regions", rootCmd.Flags().Lookup("regions"))
 	_ = viper.BindPFlag("role_arn", rootCmd.Flags().Lookup("role-arn"))
 	_ = viper.BindPFlag("patterns", rootCmd.Flags().Lookup("patterns"))
-
-	// Mark required flags
-	_ = rootCmd.MarkFlagRequired("file")
 }
 
 func runUpdate() error {
